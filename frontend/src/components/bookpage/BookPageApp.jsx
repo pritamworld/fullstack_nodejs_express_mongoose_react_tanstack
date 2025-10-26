@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBooksByPage, addBook, updateBook, deleteBook } from '../../api/book_api';
 import {
   Container,
   Typography,
@@ -24,6 +23,10 @@ import {
 import { Edit, Delete, Add } from '@mui/icons-material';
 import debounce from 'lodash.debounce';
 import BookFormPage from './BookFormPage';
+import getBooksByPagesQueryOptions from '../../queryoptions/getBooksByPagesQueryOptions';
+import createBookQueryOptions from '../../queryoptions/createBookQueryOptions.js';
+import updateBookQueryOptions from '../../queryoptions/updateBookQueryOptions.js';
+import deleteBookQueryOptions from '../../queryoptions/deleteBookQueryOptions.js';
 
 export default function BookPageApp() {
     const queryClient = useQueryClient();
@@ -35,91 +38,21 @@ export default function BookPageApp() {
 
     const limit = 3;
 
-    const { data, isLoading, isError } = useQuery({
-        queryKey: ['books', { page, limit, search }],
-        queryFn: () => getBooksByPage({ page, limit, search }),
-        keepPreviousData: true,
-        staleTime: 1000 * 60 * 1  // 1 minute
-    });
+    const { data, isLoading, isError } = useQuery(getBooksByPagesQueryOptions(page, limit, search));
 
     // Add book mutation
-    const addMutation = useMutation({
-        mutationFn: async (newBook) => {
-            await queryClient.cancelQueries({queryKey: ['books']});
-            const json = await addBook(newBook);
-            return json.data;
-        },
-        onSuccess: (newBook) => {
-            queryClient.setQueryData({queryKey: ['books']}, old => [...(old || []), newBook]);
-        },
-        onError: (err, newBook, context) => {
-            if (context?.previous) queryClient.setQueryData({ queryKey: ["books"] }, context.previous);
-            alert('Add failed');
-        },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ["books"] });
-        },
-    });
+    const addMutation = useMutation(createBookQueryOptions(queryClient));
   
     // Update book mutation
-    const updateMutation = useMutation({
-      mutationFn: async (bookId, bookToUpdate) => {
-        await queryClient.cancelQueries({ queryKey: ["books"] });
-        const json = await updateBook(bookId, bookToUpdate);
-        return json.data;
-      },
-      onSuccess: (updatedBook) => {
-        queryClient.setQueryData({ queryKey: ["books"] }, old =>
-          (old || []).map(b => (b._id === updatedBook._id ? updatedBook : b))
-        );
-      },
-      onError: (err, variables, context) => {
-        if (context?.previous) queryClient.setQueryData({queryKey: ['books']}, context.previous);
-        alert('Update failed');
-      },
-      onSettled: () => {
-        queryClient.invalidateQueries({queryKey: ['books']});
-      },
-    });
+    const updateMutation = useMutation(updateBookQueryOptions(queryClient));
   
     // Delete book mutation (optimistic)
-    const deleteMutation = useMutation({
-      mutationFn: async (bookId) => {
-        await queryClient.cancelQueries({queryKey: ['books']});
-        const json = await deleteBook(bookId);
-        return json.data;
-      },
-      onMutate: async (bookId) => {
-        await queryClient.cancelQueries({queryKey: ['books']});
-        // Optimistic update: remove from any cached lists
-        const keyFilter = { queryKey: ["books"] };
-        const prevListCaches = queryClient.getQueryCache().findAll(keyFilter).map((query) => ({
-            queryHash: query.queryHash,
-            previousData: query.state.data,
-        }));
-  
-  
-        queryClient.setQueriesData(keyFilter, (old) => {
-        if (!Array.isArray(old)) return old;
-            return old.filter((b) => b._id !== bookId);
-        });
-  
-        return { prevListCaches };
-      },
-      onError: (err, id, context) => {
-        if (context?.previous) queryClient.setQueryData({queryKey: ['books']}, context.previous);
-        alert('Delete failed');
-      },
-      onSettled: () => {
-        queryClient.invalidateQueries({queryKey: ['books']});
-      },
-    });
-
+    const deleteMutation = useMutation(deleteBookQueryOptions(queryClient));
 
     const handleSearchChange = useMemo(
         () => debounce((e) => {
-        setPage(1);
-        setSearch(e.target.value);
+          setPage(1);
+          setSearch(e.target.value);
         }, 400),
         []
     );
