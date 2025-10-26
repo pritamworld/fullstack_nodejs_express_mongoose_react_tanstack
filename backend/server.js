@@ -1,6 +1,7 @@
 const express = require("express")
 const booksRoutes = require("./routes/books")
 const mongoose = require("mongoose")
+const cors = require('cors');
 
 const app = express()
 
@@ -10,6 +11,13 @@ const DB_CONNECTION_STRING = process.env.DB_CONNECTION_STRING || "mongodb+srv://
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 
+// Allow all origins
+const corsOptions = {
+    origin: 'http://localhost:3000',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // If you need to send cookies or authorization headers
+};
+app.use(cors(corsOptions));
 
 app.use("/api/v1", booksRoutes)
 
