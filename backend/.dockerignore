@@ -1,0 +1,11 @@
+node_modules
+sonar-project.properties
+npm-debug.log
+./tests
+.git
+.gitignore
+.vscode
+.Ds_Store
+readme.md
+Dockerfile
+docker-compose.yml
