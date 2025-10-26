@@ -17,9 +17,12 @@ export const getBooksByPage = async ({ page = 1, limit = 5, search = '' }) => {
   params.append('_limit', limit);
   if (search) params.append('q', search);
 
-  const res = await api.get(`/books?${params.toString()}`);
-  const total = Number(res.headers['x-total-count'] || 0);
-  return { data: res.data, total };
+  const res = await api.get(`/books/page?${params.toString()}`);
+  const total = Number(res.headers['X-Total-Count'] || 0);
+  // console.log('Books Response:', res.data);
+  const newObj = { data: res.data, total }
+  // console.log('newObj Response:', newObj);
+  return newObj;
 };
 
 export const addBook = async (book) => {

@@ -23,6 +23,7 @@ routes.get("/books", (req, res) => {
         })
 })
 
+
 //Add NEW Book
 routes.post("/books", async (req, res) => {
     const newBookData = req.body
@@ -144,6 +145,59 @@ routes.get("/book/:bookid", async (req, res) => {
     })
    
 })
+
+// GET /books/page?_page=1&_limit=10&q=harry
+routes.get("/books/page", async (req, res) => {
+  try {
+    let { _page = "1", _limit = "10", q = "" } = req.query;
+
+    const page = Math.max(parseInt(_page, 10) || 1, 1);
+    // put a sane upper-bound on limit to protect the DB
+    const limit = Math.min(Math.max(parseInt(_limit, 10) || 10, 1), 100);
+
+    // Build filter
+    const filter = {};
+    if (q && String(q).trim().length > 0) {
+      // Escape regex special chars and do case-insensitive partial match
+      const escaped = String(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const rx = new RegExp(escaped, "i");
+      filter.$or = [{ title: rx }, { author: rx }];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [total, data] = await Promise.all([
+      BookModel.countDocuments(filter),
+      BookModel.find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort({ _id: -1 }) // newest first; adjust as needed
+        .lean(),
+    ]);
+
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    res.setHeader('X-Total-Count', total);
+    res.status(200).json({
+      status: true,
+      message: "Books fetched successfully",
+      page,
+      limit,
+      total,         // total matching documents
+      totalPages,
+      count: data.length, // number returned in this page
+      hasPrevPage: page > 1,
+      hasNextPage: page < totalPages,
+      data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: err.message,
+    });
+  }
+});
+
 
 //Get All Books in sorted order
 routes.get("/books/sort", async (req, res) => {
